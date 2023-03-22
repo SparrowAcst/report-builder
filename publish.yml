@@ -1,0 +1,32 @@
+- publish:
+    - section:
+        align: justify-center
+        columns:
+          - column:
+              width: 12
+              widgets:
+                - markdown:
+                    from: a
+                    content: '# Column {{columns[0]}}'
+
+    - section:
+        align: justify-center
+        columns:
+          - column:
+              width: 4
+              widgets:
+                - markdown:
+                    from: a
+                    content: '## 2nd Section Column {{columns[0]}}'
+          - column:
+              width: 4
+              widgets:
+                - markdown:
+                    from: a
+                    content: '## 2nd Section Column {{columns[1]}}'
+          - column:
+              width: 4
+              widgets:
+                - markdown:
+                    from: a
+                    content: '## 2nd Section Column {{columns[2]}}'
