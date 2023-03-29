@@ -1,17 +1,10 @@
-const { extend, last } = require("lodash")
+const { extend, last, find } = require("lodash")
 
 const UUID = require("uuid").v4
 const uuid = () => last(UUID().split("-"))
 
-// command.height
-// command.from
-// command.asCategory
-// command.asValue
-
 
 module.exports = command => {
-
-    console.log("!!!!", command)
 
     const id = uuid()
 
@@ -33,6 +26,31 @@ module.exports = command => {
             "script": ""
         },
         "activated": false
+    }
+
+    let visualData
+
+    if(command.legend) {
+        visualData = command.legend.map( d => {
+        let f = find(command.from, s => s[command.asCategory] == d.name)
+            return {
+                name: d.name,
+                value: (f) ? f[command.asValue] : 0,
+                itemStyle:{
+                    color: d.color
+                }    
+            }
+        }).filter( d => d.value > 0)
+    
+        command.legend = command.legend.filter( l => find(visualData, v => v.name == l.name))
+
+    } else {
+        visualData = command.from.map(d => ({
+            name: d[command.asCategory],
+            value: d[command.asValue]
+        }))
+        
+        command.legend = visualData.map( d => ({name: d.name}))
     }
 
 
@@ -57,13 +75,14 @@ module.exports = command => {
             orient: "vertical",
             itemGap: 2,
             itemHeight: 10,
-            data: command.from.map(d => ({
-                name: d[command.asCategory]
-            }))
+            data: command.legend
         },
+
+        color: command.color,
+
         "series": [{
             "type": "pie",
-            "radius": [
+            "radius": command.radius || [
                 "30%",
                 "45%"
             ],
@@ -73,7 +92,7 @@ module.exports = command => {
                 "65%"
             ],
             "itemStyle": {
-                borderRadius: 5,
+                borderRadius: 7,
                 borderColor: "#fff",
                 borderWidth: 2
             },
@@ -106,10 +125,7 @@ module.exports = command => {
             labelLine: {
                 show: true
             },
-            data: command.from.map(d => ({
-                name: d[command.asCategory],
-                value: d[command.asValue]
-            }))
+            data: visualData
         }]
     }
 

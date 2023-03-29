@@ -1,0 +1,253 @@
+- log: START QUERY
+
+
+- query:
+    - from: examination2
+    - match:
+        label: state
+        operation: "=="
+        value: "accepted"
+    - from: examination2
+    - custom:
+        $addFields: 
+            date: 
+                $cond: 
+                    if: $updatedAt
+                    then: $updatedAt
+                    else: $synchronizedAt
+    - dateTrunc:
+        label: date
+        unit: day
+        binSize: 1
+    - out: accepted_data
+
+- query:
+    - from: examination2
+    - custom:
+        $addFields: 
+            date: 
+                $cond: 
+                    if: $updatedAt
+                    then: $updatedAt
+                    else: $synchronizedAt
+    - dateTrunc:
+        label: date
+        unit: day
+        binSize: 1
+    - out: trunc_date
+
+
+- log: START AGGREGATE STAGE
+
+- aggregate:
+
+    - value:
+        transform: >
+           () => moment(new Date()).format("MMM DD YYYY HH:mm:ss")
+        into: currentDate   
+
+    - histogram:
+        from: examination2
+        label: state
+        transform: >
+            value => value.state
+        into: total_hist
+    
+    - histogram:
+        from: accepted_data
+        label: org
+        transform: >
+            value => value.org.filter(d => d.value)
+        into: accepted_hist
+
+    - timeline:
+        from: trunc_date
+        date: date
+        groupBy: state
+        into: total_acc  
+        unit: day
+        binSize: 1
+        cumulative: true 
+
+    - timeline:
+        from: accepted_data
+        date: date
+        groupBy: org
+        into: accept_clinic  
+        unit: day
+        binSize: 1
+        cumulative: true 
+
+
+# - log:
+#     eval: >
+#         context => JSON.stringify(context.total_hist, null, " ")
+# - log:
+#     eval: >
+#         context => JSON.stringify(context.accepted_hist, null, " ")
+# - log:
+#     eval: >
+#         context => JSON.stringify(context.total_acc, null, " ")
+
+
+- log: START PUBLISH STAGE
+
+- publish:
+
+    - section:
+        align: justify-center
+        columns:
+          - column:
+              width: 8  
+              widgets:
+                
+                - markdown:
+                    content: >
+                        #Data Collection and Validation Workflow
+                        
+                        **Current Dataset:** Heart Harvest 2
+                        
+                        
+                        **Report Date:** ${currentDate}
+                        
+  
+    - section:
+        align: justify-center
+        columns:
+          - column:
+              width: 2
+              widgets:
+                
+                - markdown:
+                    content: '###Actual Data Collection State'                
+                
+                - pie-chart:
+                    from: total_hist
+                    
+                    asCategory: value
+                    asValue: count
+                    
+                    legend:
+                        - name: pending
+                          color: "#ffa000"
+                        - name: inReview
+                          color: "#1e88e5"
+                        - name: rejected
+                          color: "#f44336"
+                        - name: accepted
+                          color: "#43a047"
+
+                    height: 250
+                    radius:
+                        - 45%
+                        - 60%
+
+
+          - column:
+              width: 6
+              widgets:
+
+                - markdown:
+                    content: '###Data Accumulation'                
+                
+                - time-chart:
+                    from: total_acc
+                    asSerieName: id
+                    asSerieData: data
+                    
+                    legend:
+                        - name: rejected
+                          color: "#f44336"
+                        - name: accepted
+                          color: "#43a047"
+
+                    stacked: true
+                    areaStyle:
+                        opacity: 0.15
+                    lineStyle:
+                        width: 0.75
+                    smooth: false    
+                    height: 300
+
+    - section:
+        align: justify-center
+        columns:
+          - column:
+              width: 2
+              widgets:
+                
+                - markdown:
+                    content: '###Accepted Data by Clinics'                
+                
+                - pie-chart:
+                    from: accepted_hist
+                    
+                    asCategory: value
+                    asValue: count
+                    height: 250
+                    radius:
+                        - 45%
+                        - 60%
+                    
+
+          - column:
+              width: 6
+              widgets:
+
+                - markdown:
+                    content: '###Accumulation of Accepted Data by Clinics'                
+
+                - time-chart:
+                    from: accept_clinic
+                    asSerieName: id
+                    asSerieData: data
+                    
+                    # legend:
+                    #     - name: rejected
+                    #       color: "#f44336"
+                    #     - name: accepted
+                    #       color: "#43a047"
+
+                    stacked: true
+                    areaStyle:
+                        opacity: 0.15
+                    lineStyle:
+                        width: 0.75
+                    smooth: false    
+                    height: 300
+
+    - section:
+        align: justify-center
+        columns:
+          - column:
+              width: 8  
+              widgets:
+                
+                - markdown:
+                    content: >
+
+                        ###Notes
+
+                        At the ***first stage***, the system automatically checks compliance with the above
+                        survey data requirements. At the ***second stage***, the expert analyzes the completeness and quality of the data 
+                        and makes the final decision.
+                        decision to accept/reject examination data.
+                        
+                        
+                        Characterization of examination data states:
+                        
+                        
+                        - **pending** - You have uploaded patient data to the folder and completed clinical forms, but they
+                        incomplete (error in the number of files, folder name, not all required fields in the forms
+                        filled). Check the files for presence, typos in the name, etc.
+                        
+                        - **inReview** - You have loaded the patient data into the folder and the automatic check was successful.
+                        The data will be verified by an expert.
+                        
+                        - **rejected** - either the data was checked by an expert and not accepted with an indication of the reason in
+                        comments, or the data is not automatically accepted after the allowed preparation time
+                        data.
+                        
+                        - **accepted** - the patient's data has been successfully verified and accepted by Sparrow, you can delete the folder
+                        this patient
+                        Pending - You have uploaded patient data to the folder and completed clinical forms, but they

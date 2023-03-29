@@ -1,23 +1,12 @@
-const { extend, last } = require("lodash")
+const { extend, last, find } = require("lodash")
 const deepExtend = require("deep-extend")
 
 const UUID = require("uuid").v4
 const uuid = () => last(UUID().split("-"))
 
 
-
-
-
-// command.height
-// command.from
-// command.asCategory
-// command.asValue
-
-
 module.exports = command => {
     
-    console.log("!!!!", command)
-
 
     const id = uuid()
     
@@ -41,24 +30,78 @@ module.exports = command => {
         "activated": false
     }
 
+
+    let visualData
+
+    if(command.legend) {
+        visualData = command.legend.map( d => {
+        let f = find(command.from, s => s[command.asCategory] == d.name)
+            return {
+                name: d.name,
+                value: (f) ? f[command.asValue] : 0,
+                itemStyle:{
+                    color: d.color
+                }    
+            }
+        }).filter( d => d.value > 0)
+    
+        // command.legend = command.legend.filter( l => find(visualData, v => v.name == l.name))
+
+    } else {
+        visualData = command.from.map(d => ({
+            name: d[command.asCategory],
+            value: d[command.asValue]
+        }))
+        
+        // command.legend = visualData.map( d => ({name: d.name}))
+    }
+
+
+
+
     const data = {
+      
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: {
+          type: 'shadow'
+        }
+      },
+
+      grid: {
+        left: '3%',
+        right: '4%',
+        bottom: '3%',
+        containLabel: true
+      },
+  
       xAxis: {
         type: (command.vertical) ? "category" : "value",
-        data: (command.vertical) ? command.from.map( d => d[command.asCategory]) : undefined
+        data: (command.vertical) ? visualData.map( d => d.name) : undefined
       },
+      
       yAxis: {
         type: (command.vertical) ? "value" : "category",
-        data: (command.vertical) ? undefined : command.from.map( d => d[command.asCategory])  
+        data: (command.vertical) ? undefined : visualData.map( d => d.name)  
       
       },
 
+      color: command.color,
+      
       series: [
         {
-          data: command.from.map( d => d[command.asValue]), 
+          data: visualData, 
           type: 'bar',
           showBackground: true,
           backgroundStyle: {
             color: 'rgba(180, 180, 180, 0.2)'
+          },
+
+          label: {
+              show: true,
+              precision: 1,
+              position: (command.vertical) ? 'top' : 'right',
+              fontWeight: "bold"
           }
         }
       ]

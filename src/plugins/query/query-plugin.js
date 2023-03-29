@@ -1,11 +1,15 @@
 const UUID = require("uuid").v4
 
-const { last, template, templateSettings, extend, isArray, find, set, uniqBy, flattenDeep, sortBy} = require("lodash")
+const { first, last, template, templateSettings, extend, isArray, find, set, uniqBy, flattenDeep, sortBy, min, max} = require("lodash")
 
 const uuid = () => UUID()
 const buildPipeline = require("./query-builder")
 
-const moment = require("moment")
+const Moment = require("moment")
+const MomentRange = require('moment-range');
+const moment = MomentRange.extendMoment(Moment);
+
+
 const _ = require("lodash")
 
 const path = require("path")
@@ -36,6 +40,22 @@ const transform = ( script, value ) => {
 }
 
 
+const close = async () => {
+	try {
+		for(let index = 0; index< pluginContext.temp.length; index++){
+			         
+	        console.log("DROP TEMP", pluginContext.temp[index])
+	        await mongodb.drop(extend({}, config, {
+	        	collection: `${config.db.name}.${pluginContext.temp[index]}`
+	        }))
+	    }
+
+		pluginContext.temp = []
+	} catch (e) {
+		console.log(e.toString())
+	}	
+}
+
 
 module.exports = {
 
@@ -44,20 +64,19 @@ module.exports = {
 		pluginContext = {
 		    id: uuid(),
 			temp: []
-		}	
+		}
+
     },
 
-
+    close, 
+    
     commands: [
 
         {
             name: ["query"],
             _execute: async (command, context) => {
 
-            	console.log(command)
-
             	const query = buildPipeline(pluginContext, command.query)
-                console.log(JSON.stringify(query.pipeline, null, " "))
 
             	await mongodb.aggregate_raw({	
 	            	db: config.db,
@@ -69,12 +88,11 @@ module.exports = {
             }
         },
         {
-        	name: ["purge"],
+        	name: ["purge", "close"],
             _execute: async (command, context) => {
-            	// console.log(command)
             	for(let index = 0; index< pluginContext.temp.length; index++){
 		         
-		            console.log("DROP TEMP", pluginContext.temp[index])
+		            console.log(`DROP TEMP COLLECTION ${pluginContext.temp[index]}`)
 		            await mongodb.drop(extend({}, config, {
 		            	collection: `${config.db.name}.${pluginContext.temp[index]}`
 		            }))
@@ -101,8 +119,7 @@ module.exports = {
         	name: ["histogram", "hist"],
             _execute: async (command, context) => {
         
-            	// console.log(command)
-        		
+            	
         		command.histogram.label = (isArray(command.histogram.label)) ? command.histogram.label : [command.histogram.label]
 
                 let pipeline = {
@@ -142,9 +159,9 @@ module.exports = {
 	            	collection: `${config.db.name}.${resolveSource(command.histogram.from)}`,
 	            	pipeline: [pipeline]
 	            })
-
+	
 				value = transform( command.histogram.transform, value[0] )
-
+				
 				set(context, command.histogram.into, value)
                 
                 return context
@@ -155,13 +172,19 @@ module.exports = {
         	name: ["timeline", "timeseries"],
             _execute: async (command, context) => {
         
-            	console.log(command)
-        		
+       		
         		command.timeline.groupBy = (isArray(command.timeline.groupBy)) ? command.timeline.groupBy : [command.timeline.groupBy]
 
         		let pipeline = []
 
-				let current = {
+        		let current = {
+        			$match: {}
+        		}
+
+        		current.$match[command.timeline.date] = { $ne: null }
+        		pipeline.push(current)
+				
+				current = {
 					$sort:{}
 				}
 
@@ -219,21 +242,13 @@ module.exports = {
 				current = {
 					$project:{
 						_id: 0,
-						name:{
-							$concat:[]
-						},
+						id: "$_id",
 						data: "$data"
 					}
 				}
 
-				command.timeline.groupBy.forEach(key => {
-					current.$project.name.$concat.push(`$_id.${key}`)
-					current.$project.name.$concat.push(" ")
-				})
-
 				pipeline.push(current)
 
-				// console.log(JSON.stringify(pipeline, null, " "))
 
 				let value = await mongodb.aggregate_raw({	
 	            	db: config.db,
@@ -241,11 +256,41 @@ module.exports = {
 	            	pipeline
 	            })
 
-				let dates = sortBy( uniqBy( flattenDeep( value.map( v => v.data.map( d => d.date )))))
+
+				value = value.map( v => {
+
+					v.data = v.data.map( d => {
+						d.date =  new Date(d.date)
+						return d
+					})
+					return v
+				})
+				
+				let dates = sortBy(flattenDeep( value.map( v => v.data.map( d => d.date ))))
+				
+				let start = moment(first(dates))
+				let stop = moment(last(dates))
+				
+				let range = moment.range(start, stop)
+				
+				dates = Array.from(
+					range.by(command.timeline.unit || "day", { step: command.timeline.binSize || 1})
+				).map( d => d.toDate())
 				
 				value.forEach( serie => {
-					serie.data = dates.map( date =>{
-						const f = find(serie.data, d => d.date == date)
+					serie.data = dates.map( (date, index) => {
+						const f = find( serie.data, d => {
+							let res = true
+
+							if( index < dates.length-1){
+								res = res && d.date.getTime() < dates[index+1].getTime()
+							}
+							if( index > 0){
+								res = res && d.date.getTime() > dates[index-1].getTime()
+							}
+							return  res 
+						})
+						
 						return {
 								date,
 								value: (f) ? f.value : 0 
@@ -254,6 +299,21 @@ module.exports = {
 
 					return serie
 				})
+
+				
+				if(command.timeline.cumulative){
+					
+					value.forEach( serie => {
+						let acc =0
+						serie.data = serie.data.map( d => {
+							acc += d.value
+							d.value = acc
+							return d
+						}) 
+						return serie
+					})
+
+				}
 
 				value = transform( command.timeline.transform, value )
 
@@ -268,8 +328,6 @@ module.exports = {
         	name: ["count", "length"],
             _execute: async (command, context) => {
         
-            	console.log(command)
-        		
         		let pipeline = [{$count: "count"}]
 
 				let value = await mongodb.aggregate_raw({	
@@ -290,8 +348,6 @@ module.exports = {
         	name: ["set", "fetch", "copy"],
             _execute: async (command, context) => {
         
-            	console.log(command)
-        		
         		let pipeline = [
 				  {
 				    '$match': {}
@@ -323,8 +379,6 @@ module.exports = {
         	name: ["value", "const"],
             _execute: async (command, context) => {
         
-            	console.log(command)
-        		
 				value = transform( command.value.transform )
 
 				set(context, command.value.into, value)

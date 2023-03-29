@@ -383,6 +383,11 @@ const operationMapper = {
 		return [res]
 	},
 
+	custom: (context, op) => {
+		
+		let res = (isArray(op.custom)) ? op.custom : [op.custom]
+		return res
+	},
 	
 
 	// hist: (context, op) => {
@@ -613,7 +618,7 @@ const operationMapper = {
 
 
 const normalizeOperation = (context, operation) => {
-	console.log(keys(operation)[0], operationMapper[keys(operation)[0]])
+	// console.log(keys(operation)[0], operationMapper[keys(operation)[0]])
 	let mapper = operationMapper[keys(operation)[0]]
 	if(!mapper) throw new Error(`Query Builder on:\n ${JSON.stringify(op, null," ")}\n Statement type "${getOperation(operation)}" not supported.`)
 	return mapper(context,operation)
@@ -634,7 +639,8 @@ const buildPipeline = (context, query) => {
 		"sample",
 		"count",
 		"dateTrunc",
-		"timeline"
+		"timeline",
+		"custom"
 	]	
 	
 
@@ -646,7 +652,7 @@ const buildPipeline = (context, query) => {
 
 	query.forEach( operation  => {
 		
-		console.log(operation)
+		// console.log(operation)
 
 		if( operation.out ){
 			tempTable = `${context.id}-${operation.out}`

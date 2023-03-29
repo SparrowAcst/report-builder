@@ -1,0 +1,230 @@
+- log: START QUERY
+
+
+- query:
+    - from: harvest1
+    - dateTrunc:
+        label: updated at
+        unit: day
+        binSize: 1
+    - out: HH1_data
+
+
+- log: START AGGREGATE STAGE
+
+- aggregate:
+
+    - value:
+        transform: >
+           () => moment(new Date()).format("MMM DD YYYY HH:mm:ss")
+        into: currentDate   
+
+    - histogram:
+        from: harvest1
+        label: TODO
+        transform: >
+            value => value.TODO
+        into: HH1_hist
+
+    - timeline:
+        from: HH1_data
+        date: updated at
+        groupBy: TODO
+        into: HH1_timeline  
+        unit: day
+        binSize: 1
+        cumulative: true 
+
+
+# - log:
+#     eval: >
+#         context => JSON.stringify(context.currentDate, null, " ")
+# - log:
+#     eval: >
+#         context => JSON.stringify(context.HH1_hist, null, " ")
+# - log:
+#     eval: >
+#         context => JSON.stringify(context.HH1_timeline, null, " ")
+
+
+# - log: START PUBLISH STAGE
+
+- publish:
+
+    - section:
+        align: justify-center
+        columns:
+          - column:
+              width: 8  
+              widgets:
+                
+                - markdown:
+                    content: >
+                        #ADE Data Labeling Workflow
+                        
+                        **Report Date:** ${currentDate}
+                - markdown:
+                    content: >
+                        ##Dataset "Heart Harvest 1"
+                        
+  
+    - section:
+        align: justify-center
+        columns:
+          - column:
+              width: 2
+              widgets:
+                
+                - markdown:
+                    content: '###Actual Data Labeling State'                
+                
+                - pie-chart:
+                    from: HH1_hist
+                    
+                    asCategory: value
+                    asValue: count
+                    
+                    legend:
+                        - name: Assign 2nd expert
+                          color: '#9e9e9e'
+                        - name: Assign 1st expert
+                          color: "#a1887f"
+                        - name: Continue Labeling
+                          color: "#e6ab02" 
+                        - name: Resolve 1st Stage Rejection
+                          color: "#ff5722" 
+                        - name: Complete 2nd Stage
+                          color: "#66a61e"
+                        - name: Resolve 2nd Stage Rejection
+                          color: "#d32f2f"
+                        - name: Complete Labeling
+                          color: "#1e88e5"    
+                        - name: Finalized
+                          color: "#7570b3"
+                    
+                    height: 350
+                    radius:
+                        - 45%
+                        - 60%
+
+
+          - column:
+              width: 6
+              widgets:
+
+                - markdown:
+                    content: '###Data Labeling Timeline'                
+                
+                - time-chart:
+                    from: HH1_timeline
+                    asSerieName: id
+                    asSerieData: data
+                    
+                    legend:
+                        - name: Assign 2nd expert
+                          color: '#9e9e9e'
+                        - name: Assign 1st expert
+                          color: "#a1887f"
+                        - name: Continue Labeling
+                          color: "#e6ab02" 
+                        - name: Resolve 1st Stage Rejection
+                          color: "#ff5722" 
+                        - name: Complete 2nd Stage
+                          color: "#66a61e"
+                        - name: Resolve 2nd Stage Rejection
+                          color: "#d32f2f"
+                        - name: Complete Labeling
+                          color: "#1e88e5"    
+                        - name: Finalized
+                          color: "#7570b3"
+                    
+                    stacked: true
+                    areaStyle:
+                        opacity: 0.15
+                    lineStyle:
+                        width: 0.75
+                    smooth: false    
+                    height: 400
+
+#     - section:
+#         align: justify-center
+#         columns:
+#           - column:
+#               width: 2
+#               widgets:
+                
+#                 - markdown:
+#                     content: '###Accepted Data by Clinics'                
+                
+#                 - pie-chart:
+#                     from: accepted_hist
+                    
+#                     asCategory: value
+#                     asValue: count
+#                     height: 250
+#                     radius:
+#                         - 45%
+#                         - 60%
+                    
+
+#           - column:
+#               width: 6
+#               widgets:
+
+#                 - markdown:
+#                     content: '###Accumulation of Accepted Data by Clinics'                
+
+#                 - time-chart:
+#                     from: accept_clinic
+#                     asSerieName: id
+#                     asSerieData: data
+                    
+#                     # legend:
+#                     #     - name: rejected
+#                     #       color: "#f44336"
+#                     #     - name: accepted
+#                     #       color: "#43a047"
+
+#                     stacked: true
+#                     areaStyle:
+#                         opacity: 0.15
+#                     lineStyle:
+#                         width: 0.75
+#                     smooth: false    
+#                     height: 300
+
+#     - section:
+#         align: justify-center
+#         columns:
+#           - column:
+#               width: 8  
+#               widgets:
+                
+#                 - markdown:
+#                     content: >
+
+#                         ###Notes
+
+#                         At the ***first stage***, the system automatically checks compliance with the above
+#                         survey data requirements. At the ***second stage***, the expert analyzes the completeness and quality of the data 
+#                         and makes the final decision.
+#                         decision to accept/reject examination data.
+                        
+                        
+#                         Characterization of examination data states:
+                        
+                        
+#                         - **pending** - You have uploaded patient data to the folder and completed clinical forms, but they
+#                         incomplete (error in the number of files, folder name, not all required fields in the forms
+#                         filled). Check the files for presence, typos in the name, etc.
+                        
+#                         - **inReview** - You have loaded the patient data into the folder and the automatic check was successful.
+#                         The data will be verified by an expert.
+                        
+#                         - **rejected** - either the data was checked by an expert and not accepted with an indication of the reason in
+#                         comments, or the data is not automatically accepted after the allowed preparation time
+#                         data.
+                        
+#                         - **accepted** - the patient's data has been successfully verified and accepted by Sparrow, you can delete the folder
+#                         this patient
+#                         Pending - You have uploaded patient data to the folder and completed clinical forms, but they

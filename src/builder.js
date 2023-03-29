@@ -1,29 +1,12 @@
 const { extend, isArray, keys, isString, get, isFunction, flatten, isObject, first } = require("lodash")
 const YAML = require("js-yaml")
+const moment = require("moment")
 
 const publishPlugin = require("./plugins/publish/publish-plugin")
 const queryPlugin = require("./plugins/query/query-plugin")
+const logPlugin = require("./plugins/publish/log-plugin")
 
-// const pluginsNames = {
-// 	// "cheerio-plugin"		: "./plugins/cheerio-scanany-plugin",
-// 	// "js-plugin"				: "./plugins/js-scanany-plugin",
-// 	// "pdf-plugin"			: "./plugins/pdf-scanany-plugin",
-// 	// "docx-plugin"			: "./plugins/docx-scanany-plugin",
-// 	// "xlsx-plugin"			: "./plugins/xlsx-scanany-plugin",
-// 	// "file-plugin"			: "./plugins/file-scanany-plugin",
-// 	// "mongodb-plugin"		: "./plugins/mongodb-scanany-plugin",
-// 	// "mysql-plugin"			: "./plugins/mysql-scanany-plugin",
-// 	// "transform-plugin"		: "./plugins/transform-scanany-plugin",
-// 	// "rss-plugin"			: "./plugins/rss-scanany-plugin",
-// 	// "puppeteer-plugin"		: "./plugins/puppeteer-scanany-plugin",
-// 	// "axios-plugin"			: "./plugins/axios-scanany-plugin",
-// 	// "core-plugin"			: "./plugins/core-scanany-plugin",
-// 	// "cast-plugin"			: "./plugins/cast-scanany-plugin",
-// 	// "regex-plugin"			: "./plugins/regex-scanany-plugin",
 
-// }
-
-// const resolvePluginPath = plugin => pluginsNames[plugin] || plugin
 
 const Builder = class {
 	#plugins
@@ -35,18 +18,16 @@ const Builder = class {
 		this.#commandImplementations = []
 		this.use([
 			publishPlugin,
-			queryPlugin
+			queryPlugin,
+			logPlugin
 		])
 	}
 
 	use(plugins){
 		plugins = (isArray(plugins)) ? plugins : [plugins]
 		plugins.forEach( plugin => {
-			// plugin = resolvePluginPath(plugin)
-			// if(!this.#plugins.includes(plugin)) {
 				this.#plugins.push(plugin)
 				this.register(plugin)
-			// }	
 		})
 	}
 
@@ -58,19 +39,11 @@ const Builder = class {
 		})
 	}
 
-	// resolveValue(raw, context){
-	// 	if(!raw) return
-	// 	if(raw.$ref) {
-	// 		return get(context, raw.$ref)
-	// 	}
-	// 	if(raw.$const) {
-	// 		return raw.$const
-	// 	}
-	// 	return raw 
-	// }
-
 	async executeOnce(command, context, sender){
-		console.log("EXECUTE",command)
+		
+		// context.$log = context.$log || []
+  //       context.$log += `\n[ ${moment(new Date()).format("YYYY.MM.DD HH:mm:ss")} ]:\n${YAML.dump(command)}`
+
 		let commandName = first(keys(command))
 		
 		let executor = this.#commandImplementations.filter(rule => rule.name.includes(commandName))
@@ -98,9 +71,13 @@ const Builder = class {
 	}
 
 	async execute(script, context){
+		
+		let i
+		
 		try {
 		
 			if(!script) return context
+
 
 			if(isString(script)){
 				script = YAML.load(script.replace(/\t/gm, " "))
@@ -109,17 +86,67 @@ const Builder = class {
 			script = (isArray(script)) ? script : [script]
 			context = context || {}
 			
+			context._log = ""	
+			
 			this.#commandPath = []
-			for( let i=0; i < script.length; i++ ){
+			for( i=0; i < script.length; i++ ){
 				let ctx = await this.executeOnce(script[i], context)
 				context = (ctx) ? ctx : context  
 			}
 
-			return context
 		
 		} catch(e) {
-			context.error = e.toString()
+			
+			context._error = ` Error at script position ${i}.\n${YAML.dump(script[i])}\n${e.toString()}`
+		
+		} finally {
+			
+			for(let i=0; i < this.#plugins.length; i++){
+				if( this.#plugins[i].close ) {
+					await this.#plugins[i].close()
+				}		
+			}
+
+			if(context._error){
+			
+				context._log += `\n[ ${moment(new Date()).format("YYYY.MM.DD HH:mm:ss")} ]: Report corrupted due to errors`
+				context._log += `\n${context.$error}`
+			} else {
+				
+				context._log += `\n[ ${moment(new Date()).format("YYYY.MM.DD HH:mm:ss")} ]: Report completed successfully`
+		
+			}
+
+			// context.$log += `\n[ ${moment(new Date()).format("YYYY.MM.DD HH:mm:ss")} ]: Report context`
+			
+			// let loggedContextFields = keys(context).filter( key => !key.startsWith("$"))
+			
+			// context.$log +=`{\n`
+			
+			// loggedContextFields.forEach( key => {
+			// 	context.$log +=`${key}: `
+			// 	let data = context[key]
+			// 	let res
+			// 	if(isArray(data) && data.length > 5 ){
+			// 		res = data.map(d => JSON.stringify(d, null," ")).slice(0,6)
+			// 		res.push(`... ${data.length-6} items`)
+			// 		res = `[\n${res.join(",\n")}\n]`
+			// 	} else {
+			// 		res = JSON.stringify(data, null, " ")
+			// 	}
+
+			// 	context.$log += `${res},\n`
+			
+			// })			
+
+			// context.$log +=`\n}`
+			
+
+
+			    
 			return context
+			
+	
 		}	
 	}
 

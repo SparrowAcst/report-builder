@@ -5,7 +5,7 @@ const uuid = () => last(UUID().split("-"))
 
 let compile = (_template, context) => {
 
-    templateSettings.interpolate = /{{([\s\S]+?)}}/g;
+    templateSettings.interpolate = /\$\{([\s\S]+?)\}/g;
 
     let result = template(_template)(context)
 
@@ -19,13 +19,16 @@ let compile = (_template, context) => {
 
 const pieChart = require("./pie-chart")
 const barChart = require("./bar-chart")
-
+const timeChart = require("./time-chart")
+const tableWidget = require("./table")
 
 
 module.exports = {
 
     register: builder => {
+   
         builderInstance = builder
+
     },
 
 
@@ -44,7 +47,7 @@ module.exports = {
         {
         	name:["section"],
         	_execute: async (command, context) => {
-                console.log(command)
+ 
         		let product = {
         			align: command.section.align || "justify-start",
         			holders:[]
@@ -55,8 +58,8 @@ module.exports = {
         			product.holders.push(h) 
         		}
 
-        		context.$publish = context.$publish || []
-        		context.$publish.push(product)
+        		context._publish = context._publish || []
+        		context._publish.push(product)
         		return context	
         	}
         },
@@ -64,7 +67,7 @@ module.exports = {
         {
         	name:["column"],
         	_execute: async (command, context) => {
-        		console.log(command)
+ 
                 const id = uuid()
         		let product = {
         			id, 
@@ -91,7 +94,7 @@ module.exports = {
         		let data = get(context, command.markdown.from) || context
                 const id = uuid()
 
-        		let product = {
+                let product = {
         		    type: "md-widget",
         		    icon: "mdi-language-markdown-outline",
         		    id,
@@ -136,10 +139,27 @@ module.exports = {
             }
         },
 
-        // {
-        // 	name:["table"],
-        // 	_execute: async (command, context) => JSON.stringify(value, null, " ")
-        // },
+        {
+            name:["time-chart"],
+            _execute: async (command, context) => {
+                
+                let data = get(context, command["time-chart"].from)  || context
+                const res =  timeChart(extend({}, command["time-chart"], { from: data}))
+                return res
+            
+            }
+        },
+
+        {
+            name:["table"],
+            _execute: async (command, context) => {
+                
+                let data = get(context, command["table"].from)  || context
+                const res =  tableWidget(extend({}, command["table"], { from: data}))
+                return res
+            
+            }
+        },
 
     ]
 }
