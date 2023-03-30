@@ -34,7 +34,7 @@ const transform = ( script, value ) => {
 
 	} catch(e) {
 
-		throw e
+		throw new Error( `Cannot execute transform:\n${script}\n${e.toString()}`)
 	
 	}
 }
@@ -347,31 +347,38 @@ module.exports = {
         {
         	name: ["set", "fetch", "copy"],
             _execute: async (command, context) => {
-        
-        		let pipeline = [
-				  {
-				    '$match': {}
-				  }, {
-				    '$limit': 50
-				  },
-				  {
-				  	$project:{
-				  		_id: 0
-				  	}
-				  }
-				]
-				
-				let value = await mongodb.aggregate_raw({	
-	            	db: config.db,
-	            	collection: `${config.db.name}.${resolveSource(command.set.from)}`,
-	            	pipeline: pipeline.concat([{$limit: 50}])
-	            })
 
-				value = transform( command.set.transform, value )
-				
-				set(context, command.set.into, value)
-                
-                return context
+            	try {
+        		
+	            	let cmd = command.set || command.fetch || command.copy
+
+	        		let pipeline = [
+					  {
+					    '$match': {}
+					  }, {
+					    '$limit': 150
+					  },
+					  {
+					  	$project:{
+					  		_id: 0
+					  	}
+					  }
+					]
+					
+					let value = await mongodb.aggregate_raw({	
+		            	db: config.db,
+		            	collection: `${config.db.name}.${resolveSource(cmd.from)}`,
+		            	pipeline: pipeline //.concat([{$limit: 150}])
+		            })
+
+					value = transform( cmd.transform, value )
+					
+					set(context, cmd.into, value)
+	                
+	                return context
+	            } catch (e) {
+	            	throw e
+	            }    
 
             }	
         },

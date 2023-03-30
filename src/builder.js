@@ -62,9 +62,13 @@ const Builder = class {
 				}
 			}
 
-			let ctx = await executor(command, context, sender)
-			context = (isObject(ctx)) ? (!isArray) ? Object.assign({}, context, ctx) : ctx : ctx
-			return context	
+			try {
+				let ctx = await executor(command, context, sender)
+				context = (isObject(ctx)) ? (!isArray) ? Object.assign({}, context, ctx) : ctx : ctx
+				return context
+			} catch (e) {
+				throw e
+			}		
 		} else {
 			throw new Error(`"${commandName}" command not implemented`)
 		}
@@ -110,7 +114,7 @@ const Builder = class {
 			if(context._error){
 			
 				context._log += `\n[ ${moment(new Date()).format("YYYY.MM.DD HH:mm:ss")} ]: Report corrupted due to errors`
-				context._log += `\n${context.$error}`
+				context._log += `\n${context._error}`
 			} else {
 				
 				context._log += `\n[ ${moment(new Date()).format("YYYY.MM.DD HH:mm:ss")} ]: Report completed successfully`

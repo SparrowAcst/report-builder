@@ -1,0 +1,184 @@
+# 
+# ADE Dataset Metadata
+# 
+
+- query:
+    - from: harvest1-metadata
+    - match:
+        label: label
+        operation: "=="
+        value: true
+    - out: labels    
+
+- query:
+    - from: harvest1-metadata
+    - custom:
+        $match:
+            $or:
+                - label: false
+                - label:
+                    $exists: false
+    - out: additional_fields    
+
+
+
+- aggregate:
+
+    - set: 
+        from: labels
+        transform: > 
+            value =>
+                _.sortBy (
+                
+                    value.map( row => ({
+                        name: row.name,
+                        disabled: row.disabled,
+                        required: row.required,
+                        type: row.type,
+                        values: row.values
+                        
+                    })),
+                    d => d.name
+                ).map( (row, index) => {
+                  row.No = index + 1  
+                  return row        
+                }).map( row => {
+                    _.keys(row).forEach( key => {
+                        if( key != "values"){
+                            row[key] = { html: `<span class="body-2">${(row[key])?row[key]:""}</span>`}
+                        } else {
+                            row[key] =     { 
+                                html: (row.values && _.isArray(row.values)) 
+                                    ? "<ul>"+row.values.map( d => `<li>${d}</li>`).join("")+"</ul>" 
+                                    : "&nbsp;"
+                            }
+                        }
+                        
+                    })
+                    return row
+                })
+                
+                    
+        into: metadata
+
+    - set: 
+        from: additional_fields
+        transform: > 
+            value =>
+                _.sortBy (
+                
+                    value.map( row => ({
+                        name: row.name,
+                        type: row.type,
+                        values: row.values
+                        
+                    })),
+                    d => d.name
+                ).map( (row, index) => {
+                  row.No = index + 1  
+                  return row        
+                }).map( row => {
+                    _.keys(row).forEach( key => {
+                        if( key != "values"){
+                            row[key] = { html: `<span class="body-2">${(row[key])?row[key]:""}</span>`}
+                        } else {
+                            row[key] =     { 
+                                html: (row.values && _.isArray(row.values)) 
+                                    ? "<ul>"+row.values.map( d => `<li>${d}</li>`).join("")+"</ul>" 
+                                    : "&nbsp;"
+                            }
+                        }
+                        
+                    })
+                    return row
+                })
+                
+                    
+        into: additional
+
+# - log: 
+#     eval: >
+#         context => JSON.stringify(context.additional, null, " ")
+
+- publish: 
+    - section:
+        align: justify-center
+        columns:
+          - column:
+              width: 8  
+              widgets:
+                
+                - markdown:
+                    content: >
+                        #ADE Dataset Metadata
+            
+                - markdown:
+                    content: >
+                        ##Metadata of Dataset "Heart Harvest 1"
+                        
+                        This report describes the structure of the dataset, which includes labels and additional fields.
+                        
+                        ###Dataset Labels
+                        
+                        Labels can be in the following states:
+                        
+                        - ***disabled*** - the label is filled during data import and is not available for editing by experts;
+                        
+                        
+                        - ***required*** - the label is editable by experts and must be filled in. If the required flag is not set, 
+                        then this label is optional.
+                        
+                        
+                        Each label has one of the following types:
+                        
+                        - ***text*** - the label contains a text value;
+                        
+                        
+                        - ***number*** - the label contains a numeric value;
+                        
+                        
+                        - ***oneOf*** - the label can take one of the values defined in the list of available values; 
+                        
+                        
+                        - ***manyOf*** - the label can take an array of values defined in the list of available values.
+                                        
+                        
+                        
+                        If the label type is set to ***oneOf*** or ***anyOf***, then the corresponding list of available values 
+                        is given in the ***"values"*** column.
+                        
+                        
+                        ### Table 1. Definition of Dataset Labels
+                
+                - table:
+                    from: metadata
+                    header:
+                        items:
+                            - No
+                            - name
+                            - disabled
+                            - required
+                            - type
+                            - values
+                            
+                        decoration:
+                            class: primary--text lighten-3 subtitle-2
+
+
+                - markdown:
+                    content: >
+                        ### Table 2. Definition of Additional Fields
+   
+                - table:
+                    from: additional
+                    header:
+                        items:
+                            - No
+                            - name
+                            - type
+                            - values
+                            
+                        decoration:
+                            class: primary--text lighten-3 subtitle-2
+
+    
