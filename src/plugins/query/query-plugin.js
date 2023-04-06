@@ -27,10 +27,10 @@ const resolveSource = collection => {
 	return 	find(pluginContext.temp, c => c == `${pluginContext.id}-${collection}`) || collection
 }
 
-const transform = ( script, value ) => {
+const transform = ( script, value, context ) => {
 	try {
 		script = script || "value => value"
-		return eval(script)(value)
+		return eval(script)(value, context)
 
 	} catch(e) {
 
@@ -160,7 +160,7 @@ module.exports = {
 	            	pipeline: [pipeline]
 	            })
 	
-				value = transform( command.histogram.transform, value[0] )
+				value = transform( command.histogram.transform, value[0], context )
 				
 				set(context, command.histogram.into, value)
                 
@@ -315,7 +315,7 @@ module.exports = {
 
 				}
 
-				value = transform( command.timeline.transform, value )
+				value = transform( command.timeline.transform, value, context )
 
 				set(context, command.timeline.into, value)
                 
@@ -336,7 +336,7 @@ module.exports = {
 	            	pipeline: pipeline
 	            })
 
-				value = transform( command.count.transform, value[0] )
+				value = transform( command.count.transform, value[0], context )
 
 				set(context, command.count.into, value)
                 
@@ -371,7 +371,7 @@ module.exports = {
 		            	pipeline: pipeline //.concat([{$limit: 150}])
 		            })
 
-					value = transform( cmd.transform, value )
+					value = transform( cmd.transform, value, context )
 					
 					set(context, cmd.into, value)
 	                
@@ -386,7 +386,7 @@ module.exports = {
         	name: ["value", "const"],
             _execute: async (command, context) => {
         
-				value = transform( command.value.transform )
+				value = transform( command.value.transform, undefined, context )
 
 				set(context, command.value.into, value)
                 
