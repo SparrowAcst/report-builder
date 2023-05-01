@@ -17,7 +17,7 @@ const test = async (req, res) => {
 
 const buildReport = async (req, res) => {
 	
-	const reportId = req.params.id
+	const reportId = req.params.id 
 	const mode = req.params.mode
 
 	let reportData = await mongodb.aggregate({
@@ -60,7 +60,7 @@ const buildReport = async (req, res) => {
 		){
 			
 			builder = new Builder()
-			const result = await builder.execute(reportData.data, {})
+			const result = await builder.execute(reportData.data, { reportId })
 			reportData.cache = JSON.stringify(
 				{
 					_log: result._log,
@@ -93,11 +93,11 @@ const buildReport = async (req, res) => {
 const buildReportFromContent = async (req, res) => {
 	
 	const reportData = req.body.reportData
-	
+	const reportId = req.body.reportId
 	if(reportData){
 	
 		builder = new Builder()
-		const result = await builder.execute(reportData, {})
+		const result = await builder.execute(reportData, {reportId})
 		res.send(result)
 	
 	} else {

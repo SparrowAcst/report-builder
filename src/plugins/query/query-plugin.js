@@ -355,9 +355,10 @@ module.exports = {
 	        		let pipeline = [
 					  {
 					    '$match': {}
-					  }, {
-					    '$limit': 150
-					  },
+					  }, 
+					  // {
+					  //   '$limit': 150
+					  // },
 					  {
 					  	$project:{
 					  		_id: 0
@@ -370,7 +371,7 @@ module.exports = {
 		            	collection: `${config.db.name}.${resolveSource(cmd.from)}`,
 		            	pipeline: pipeline //.concat([{$limit: 150}])
 		            })
-
+					
 					value = transform( cmd.transform, value, context )
 					
 					set(context, cmd.into, value)

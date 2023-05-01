@@ -21,6 +21,8 @@ const pieChart = require("./pie-chart")
 const barChart = require("./bar-chart")
 const timeChart = require("./time-chart")
 const tableWidget = require("./table")
+const downloadWidget = require("./download")
+
 
 
 module.exports = {
@@ -156,6 +158,17 @@ module.exports = {
                 
                 let data = get(context, command["table"].from)  || context
                 const res =  tableWidget(extend({}, command["table"], { from: data}))
+                return res
+            
+            }
+        },
+
+        {
+            name:["download"],
+            _execute: async (command, context) => {
+                
+                let data = get(context, command["download"].from)  || context
+                const res =  downloadWidget(extend({}, command["download"], { from: data}), context)
                 return res
             
             }
