@@ -35,11 +35,11 @@ const csvFile = async (filename, data) => {
 const xlsxFile = async (filename, data) => {
     
     data = (isArray(data)) ? data : [data]
-    fields = keys(data[0])
+    fields = uniq( flattenDeep(data.map( d => keys(d))))
     let res = []
     res.push(fields)
     data.forEach( d => {
-        res.push(values(d))
+        res.push(fields.map( f => (d[f]) ? d[f] : undefined))
     })
 
     let wb = newWb()

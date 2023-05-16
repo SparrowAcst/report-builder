@@ -49,7 +49,17 @@ const buildReport = async (req, res) => {
 		// console.log(" >> deadline", moment(new Date()).diff(reportData.cachedAt, expiration.unit) >= expiration.size)
 		// console.log(" >> cache", reportData.cache, !reportData.cache)
 		// console.log(" >> cache._error", reportData.cache._error, !!reportData.cache._error)
-				
+		
+		if(expiration.size == -2){
+			
+			res.send({
+				_log: `NO PUBLISHED CONTENT`,
+				_publish:[]
+			})
+
+			return
+		}
+
 
 		if( 
 			   expiration.size <= 0	

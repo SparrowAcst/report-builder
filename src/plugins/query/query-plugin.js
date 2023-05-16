@@ -1,9 +1,25 @@
 const UUID = require("uuid").v4
 
-const { first, last, template, templateSettings, extend, isArray, find, set, uniqBy, flattenDeep, sortBy, min, max} = require("lodash")
+const { 
+	first, 
+	last, 
+	template, 
+	templateSettings, 
+	extend, 
+	isArray, 
+	find, 
+	set,
+	get, 
+	uniqBy, 
+	flattenDeep, 
+	sortBy, 
+	min, 
+	max
+} = require("lodash")
 
 const uuid = () => UUID()
 const buildPipeline = require("./query-builder")
+const split = require("../../utils/split")
 
 const Moment = require("moment")
 const MomentRange = require('moment-range');
@@ -392,6 +408,59 @@ module.exports = {
 				set(context, command.value.into, value)
                 
                 return context
+
+            }	
+        },
+
+        {
+        	name: ["split"],
+            _execute: async (command, context) => {
+        		
+				let data = await mongodb.aggregate_raw({	
+	            	db: config.db,
+	            	collection: `${config.db.name}.${resolveSource(command.split.from)}`,
+	            	pipeline: []
+	            })
+
+				command.split.from = data
+				let value = split(command.split)
+				value = transform( command.split.transform, value, context )
+				set(context, command.split.into, value)
+                return context
+
+            }	
+        },
+
+        {
+        	name: ["collection"],
+            _execute: async (command, context) => {
+
+            	if(!command.collection.name){
+        			throw new Error(`Collection name required.`)
+        		}
+
+            	let collections = await mongodb.listCollections({	
+	            	db: config.db
+	            })
+        		collections = collections.map( c => c.name)
+        		
+        		if(collections.includes(command.collection.name)){
+        			throw new Error(`Collection "${command.collection.name}" already exists. Use external tools for drop it.`)
+        		}
+				
+				let data = get(context, command.collection.from)
+				
+				if( !isArray(data)){
+					throw new Error(`Collection: Data shuld be array.`)
+				}
+
+				await mongodb.insertAll({
+					db: config.db,
+	            	collection: `${config.db.name}.${command.collection.name}`,
+	            	data
+				})
+				
+				return context
 
             }	
         }    
