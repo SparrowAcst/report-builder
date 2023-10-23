@@ -138,6 +138,8 @@ module.exports = {
             	
         		command.histogram.label = (isArray(command.histogram.label)) ? command.histogram.label : [command.histogram.label]
 
+                command.histogram.filter = command.histogram.filter || []
+                
                 let pipeline = {
 					$facet: {
 					} 
@@ -173,7 +175,7 @@ module.exports = {
 				let value = await mongodb.aggregate_raw({	
 	            	db: config.db,
 	            	collection: `${config.db.name}.${resolveSource(command.histogram.from)}`,
-	            	pipeline: [pipeline]
+	            	pipeline: command.histogram.filter.concat([pipeline])
 	            })
 	
 				value = transform( command.histogram.transform, value[0], context )
