@@ -138,7 +138,7 @@ module.exports = {
             	
         		command.histogram.label = (isArray(command.histogram.label)) ? command.histogram.label : [command.histogram.label]
 
-                command.histogram.filter = command.histogram.filter || []
+                command.histogram.filter = command.histogram.filter || command.histogram.prepare || []
                 
                 let pipeline = {
 					$facet: {
@@ -345,8 +345,12 @@ module.exports = {
         {
         	name: ["count", "length"],
             _execute: async (command, context) => {
-        
-        		let pipeline = [{$count: "count"}]
+        		
+        		command.count = command.count || command.length
+            	command.count.filter = command.count.filter || command.count.prepare || []
+                
+
+        		let pipeline = command.count.filter.concat([{$count: "count"}])
 
 				let value = await mongodb.aggregate_raw({	
 	            	db: config.db,

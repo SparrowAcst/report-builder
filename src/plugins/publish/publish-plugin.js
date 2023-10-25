@@ -20,6 +20,8 @@ let compile = (_template, context) => {
 const pieChart = require("./pie-chart")
 const barChart = require("./bar-chart")
 const timeChart = require("./time-chart")
+const customChart = require("./custom-chart")
+
 const tableWidget = require("./table")
 const downloadWidget = require("./download")
 
@@ -136,6 +138,22 @@ module.exports = {
                 
                 let data = get(context, command["bar-chart"].from)  || context
                 const res =  barChart(extend({}, command["bar-chart"], { from: data}))
+                return res
+            
+            }
+        },
+
+        {
+            name:["custom-chart"],
+            _execute: async (command, context) => {
+                let data = {}
+                if(command["custom-chart"].from){
+                    data = get(context, command["custom-chart"].from)  || context
+                } else if(command["custom-chart"].options) {
+                    data = command["custom-chart"].options
+                }
+                
+                const res =  customChart(extend({}, command["custom-chart"], { options: data}))
                 return res
             
             }
