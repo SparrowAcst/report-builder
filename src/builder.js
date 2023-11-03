@@ -2,6 +2,8 @@ const { extend, isArray, keys, isString, get, isFunction, flatten, isObject, fir
 const YAML = require("js-yaml")
 const moment = require("moment")
 
+const { resolveCommand } = require("./utils/values")
+
 const publishPlugin = require("./plugins/publish/publish-plugin")
 const queryPlugin = require("./plugins/query/query-plugin")
 const logPlugin = require("./plugins/publish/log-plugin")
@@ -63,6 +65,7 @@ const Builder = class {
 			}
 
 			try {
+				command = resolveCommand(command, context)
 				let ctx = await executor(command, context, sender)
 				context = (isObject(ctx)) ? (!isArray) ? Object.assign({}, context, ctx) : ctx : ctx
 				return context

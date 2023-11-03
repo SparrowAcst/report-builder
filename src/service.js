@@ -2,6 +2,7 @@ const Builder = require("./builder")
 const mongodb = require("./utils/mongodb")
 const moment = require("moment")
 
+const {extend} = require("lodash")
 
 const path = require("path")
 const YAML = require("js-yaml")
@@ -15,8 +16,13 @@ const test = async (req, res) => {
 	res.send("Ready for use")
 }
 
+
+const getRequestData = req => extend({}, req.params, req.query, req.body)
+
+
 const buildReport = async (req, res) => {
 	
+	const $request = getRequestData(req)
 	const reportId = req.params.id 
 	const mode = req.params.mode
 
@@ -70,7 +76,7 @@ const buildReport = async (req, res) => {
 		){
 			
 			builder = new Builder()
-			const result = await builder.execute(reportData.data, { reportId })
+			const result = await builder.execute(reportData.data, { reportId, $request })
 			reportData.cache = JSON.stringify(
 				{
 					_log: result._log,

@@ -92,13 +92,19 @@ module.exports = {
             name: ["query"],
             _execute: async (command, context) => {
 
-            	const query = buildPipeline(pluginContext, command.query)
+            	let querySource = (last(command.query).into) ? command.query.slice(0,-1) : command.query
 
-            	await mongodb.aggregate_raw({	
+            	const query = buildPipeline(pluginContext, querySource)
+
+            	let result = await mongodb.aggregate_raw({	
 	            	db: config.db,
 	            	collection: `${config.db.name}.${query.collection}`,
 	            	pipeline: query.pipeline
 	            })
+
+            	if(last(command.query).into) {
+            		set(context, last(command.query).into, result)
+                }
 
             	return context
             }
