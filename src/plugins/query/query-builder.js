@@ -624,7 +624,7 @@ const normalizeOperation = (context, operation) => {
 	return mapper(context,operation)
 }	
 
-const buildPipeline = (context, query) => {
+const buildPipeline = (context, query, defaultConfig) => {
 	
 	const defOperations = [
 		"union",
@@ -648,6 +648,8 @@ const buildPipeline = (context, query) => {
 	let collection
 	let pipeline = []
 	let source
+	let config = defaultConfig
+
 	context.temp = context.temp || [] 
 
 	query.forEach( operation  => {
@@ -662,9 +664,22 @@ const buildPipeline = (context, query) => {
 
 		if( operation.from ){
 			
+			let db
+			let collection
+			
+			// console.log("FROM",operation.from)
+
+			if(isString(operation.from)){
+				collection = resolveSource(context, operation.from) 
+			} else if( isObject(operation.from) ){
+				config = extend({}, {db: operation.from.db})
+				collection = resolveSource(context, operation.from.collection)
+			}
+
 			source = {
 				context,
-				collection: resolveSource(context, operation.from),
+				collection,
+				config,
 				pipeline: []
 			}
 			
@@ -693,7 +708,8 @@ const buildPipeline = (context, query) => {
 	return {
 		context,
 		collection,
-		pipeline
+		pipeline,
+		config
 	}
 
 }

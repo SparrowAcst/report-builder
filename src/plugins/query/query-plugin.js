@@ -56,6 +56,8 @@ const transform = ( script, value, context ) => {
 }
 
 
+
+
 const close = async () => {
 	try {
 		for(let index = 0; index< pluginContext.temp.length; index++){
@@ -94,13 +96,17 @@ module.exports = {
 
             	let querySource = (last(command.query).into) ? command.query.slice(0,-1) : command.query
 
-            	const query = buildPipeline(pluginContext, querySource)
+            	const query = buildPipeline(pluginContext, querySource, config)
+
+            	// console.log(query)
 
             	let result = await mongodb.aggregate_raw({	
-	            	db: config.db,
-	            	collection: `${config.db.name}.${query.collection}`,
+	            	db: query.config.db,
+	            	collection: `${query.config.db.name}.${query.collection}`,
 	            	pipeline: query.pipeline
 	            })
+
+            	// console.log(result)
 
             	if(last(command.query).into) {
             		set(context, last(command.query).into, result)
@@ -141,7 +147,8 @@ module.exports = {
         	name: ["histogram", "hist"],
             _execute: async (command, context) => {
         
-            	
+            	command.histogram.config = (command.histogram.db) ? extend({},{db:command.histogram.db}) : config 
+
         		command.histogram.label = (isArray(command.histogram.label)) ? command.histogram.label : [command.histogram.label]
 
                 command.histogram.filter = command.histogram.filter || command.histogram.prepare || []
@@ -179,8 +186,8 @@ module.exports = {
 				})
 
 				let value = await mongodb.aggregate_raw({	
-	            	db: config.db,
-	            	collection: `${config.db.name}.${resolveSource(command.histogram.from)}`,
+	            	db: command.histogram.config.db,
+	            	collection: `${command.histogram.config.db.name}.${resolveSource(command.histogram.from)}`,
 	            	pipeline: command.histogram.filter.concat([pipeline])
 	            })
 	
@@ -195,8 +202,9 @@ module.exports = {
         {
         	name: ["timeline", "timeseries"],
             _execute: async (command, context) => {
-        
-       		
+        		
+        		command.timeline.config = (command.timeline.db) ? extend({},{db:command.timeline.db}) : config 
+
         		command.timeline.groupBy = (isArray(command.timeline.groupBy)) ? command.timeline.groupBy : [command.timeline.groupBy]
 
         		let pipeline = []
@@ -275,8 +283,8 @@ module.exports = {
 
 
 				let value = await mongodb.aggregate_raw({	
-	            	db: config.db,
-	            	collection: `${config.db.name}.${resolveSource(command.timeline.from)}`,
+	            	db: command.timeline.config.db,
+	            	collection: `${command.timeline.config.db.name}.${resolveSource(command.timeline.from)}`,
 	            	pipeline
 	            })
 
@@ -352,15 +360,19 @@ module.exports = {
         	name: ["count", "length"],
             _execute: async (command, context) => {
         		
+        		// console.log(command)
+
         		command.count = command.count || command.length
+            	
+        		command.count.config = (command.count.db) ? extend({},{db:command.count.db}) : config 
             	command.count.filter = command.count.filter || command.count.prepare || []
                 
 
         		let pipeline = command.count.filter.concat([{$count: "count"}])
 
 				let value = await mongodb.aggregate_raw({	
-	            	db: config.db,
-	            	collection: `${config.db.name}.${resolveSource(command.count.from)}`,
+	            	db: command.count.config.db,
+	            	collection: `${command.count.config.db.name}.${resolveSource(command.count.from)}`,
 	            	pipeline: pipeline
 	            })
 
@@ -380,6 +392,8 @@ module.exports = {
         		
 	            	let cmd = command.set || command.fetch || command.copy
 
+	            	cmd.config = (cmd.db) ? extend({},{db:cmd.db}) : config 
+	            	
 	        		let pipeline = [
 					  {
 					    '$match': {}
@@ -395,8 +409,8 @@ module.exports = {
 					]
 					
 					let value = await mongodb.aggregate_raw({	
-		            	db: config.db,
-		            	collection: `${config.db.name}.${resolveSource(cmd.from)}`,
+		            	db: cmd.config.db,
+		            	collection: `${cmd.config.db.name}.${resolveSource(cmd.from)}`,
 		            	pipeline: pipeline //.concat([{$limit: 150}])
 		            })
 					
@@ -428,16 +442,16 @@ module.exports = {
         	name: ["split"],
             _execute: async (command, context) => {
         		
-				let data = await mongodb.aggregate_raw({	
-	            	db: config.db,
-	            	collection: `${config.db.name}.${resolveSource(command.split.from)}`,
-	            	pipeline: []
-	            })
+				// let data = await mongodb.aggregate_raw({	
+	   //          	db: config.db,
+	   //          	collection: `${config.db.name}.${resolveSource(command.split.from)}`,
+	   //          	pipeline: []
+	   //          })
 
-				command.split.from = data
-				let value = split(command.split)
-				value = transform( command.split.transform, value, context )
-				set(context, command.split.into, value)
+				// command.split.from = data
+				// let value = split(command.split)
+				// value = transform( command.split.transform, value, context )
+				// set(context, command.split.into, value)
                 return context
 
             }	
@@ -447,30 +461,32 @@ module.exports = {
         	name: ["collection"],
             _execute: async (command, context) => {
 
-            	if(!command.collection.name){
-        			throw new Error(`Collection name required.`)
-        		}
+    //         	if(!command.collection.name){
+    //     			throw new Error(`Collection name required.`)
+    //     		}
 
-            	let collections = await mongodb.listCollections({	
-	            	db: config.db
-	            })
-        		collections = collections.map( c => c.name)
+
+
+    //         	let collections = await mongodb.listCollections({	
+	   //          	db: config.db
+	   //          })
+    //     		collections = collections.map( c => c.name)
         		
-        		if(collections.includes(command.collection.name)){
-        			throw new Error(`Collection "${command.collection.name}" already exists. Use external tools for drop it.`)
-        		}
+    //     		if(collections.includes(command.collection.name)){
+    //     			throw new Error(`Collection "${command.collection.name}" already exists. Use external tools for drop it.`)
+    //     		}
 				
-				let data = get(context, command.collection.from)
+				// let data = get(context, command.collection.from)
 				
-				if( !isArray(data)){
-					throw new Error(`Collection: Data shuld be array.`)
-				}
+				// if( !isArray(data)){
+				// 	throw new Error(`Collection: Data shuld be array.`)
+				// }
 
-				await mongodb.insertAll({
-					db: config.db,
-	            	collection: `${config.db.name}.${command.collection.name}`,
-	            	data
-				})
+				// await mongodb.insertAll({
+				// 	db: config.db,
+	   //          	collection: `${config.db.name}.${command.collection.name}`,
+	   //          	data
+				// })
 				
 				return context
 
