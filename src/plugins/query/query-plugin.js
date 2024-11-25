@@ -710,10 +710,10 @@ module.exports = {
         {
         	name: ["aggregate", "context"],
             _execute: async (command, context) => {
-            	// console.log(command)
+            	// console.log("aggregate", JSON.stringify(command, null, " "))
                 command.aggregate = command.aggregate || command.context
                 for (let i = 0; i < command.aggregate.length; i++) {
-                    context = await builderInstance.executeOnce(command.aggregate[i], context)
+                    context = await builderInstance.executeOnce(command.aggregate[i], context, true)
                 }
 				return context
             }	
@@ -766,7 +766,8 @@ module.exports = {
         {
         	name: ["histogram", "hist"],
             _execute: async (command, context) => {
-        
+        		
+        		// console.log(JSON.stringify(command, null, " "))
             	
         		command.histogram.label = (isArray(command.histogram.label)) ? command.histogram.label : [command.histogram.label]
 

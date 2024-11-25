@@ -4,8 +4,9 @@ const resolveValue = (variable, context, defaultValue) => {
     
     if(isUndefined(variable)) return
     
-    if(variable && variable.$){
-        let res = get(context, variable.$)
+    if(variable && (variable.$ || variable["&"])){
+        // console.log("LOOKUP", variable)
+        let res = get(context, variable.$  || variable["&"])
 
         return  (isUndefined(res)) ? defaultValue : res
     }
@@ -16,6 +17,7 @@ const resolveValue = (variable, context, defaultValue) => {
 
 
 const resolveValues = (variable, context) => {
+    // console.log(">>>", variable, context)
     variable = resolveValue(variable, context)
     if(isArray(variable)){
         variable = variable.map( d => resolveValues(d, context))
@@ -28,7 +30,7 @@ const resolveValues = (variable, context) => {
         })
         return variable
     }
-
+    // console.log("RESOLVE", variable)
     return variable
 }
 

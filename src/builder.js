@@ -41,8 +41,10 @@ const Builder = class {
 		})
 	}
 
-	async executeOnce(command, context, sender){
-		
+	async executeOnce(command, context, sender, excludeResolve){
+			
+		// console.log("Execute", JSON.stringify(command, null, " "))
+
 		// context.$log = context.$log || []
   //       context.$log += `\n[ ${moment(new Date()).format("YYYY.MM.DD HH:mm:ss")} ]:\n${YAML.dump(command)}`
 
@@ -65,7 +67,11 @@ const Builder = class {
 			}
 
 			try {
-				command = resolveCommand(command, context)
+				
+				// console.log(">", JSON.stringify(command, null, " "))
+				if (!excludeResolve) command = resolveCommand(command, context)
+				// console.log("<", JSON.stringify(command, null, " "))
+				
 				let ctx = await executor(command, context, sender)
 				context = (isObject(ctx)) ? (!isArray) ? Object.assign({}, context, ctx) : ctx : ctx
 				return context
@@ -85,7 +91,8 @@ const Builder = class {
 		
 			if(!script) return context
 
-
+			// console.log(script)
+				
 			if(isString(script)){
 				script = YAML.load(script.replace(/\t/gm, " "))
 			}
@@ -97,6 +104,7 @@ const Builder = class {
 			
 			this.#commandPath = []
 			for( i=0; i < script.length; i++ ){
+				// console.log(JSON.stringify("Execute", script[i]))
 				let ctx = await this.executeOnce(script[i], context)
 				context = (ctx) ? ctx : context  
 			}
